@@ -1,35 +1,32 @@
 import axios from "axios";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { CountryType } from "./types";
 import CountryCard from "./components/CountryCard";
+import { filterCountriesByQuery } from "./utils/filterCountries";
 import bgImage from "../src/assets/world.svg";
 import loadingGif from "./assets/bouncing-circles.svg";
 
+const API_BASE_URL = process.env.REACT_APP_RESTCOUNTRIES_API_URL || "https://restcountries.com/v3.1";
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 20000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
 function App() {
-  const [loading, setLoading] = useState<Boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [filterCountries, setFilterCountries] = useState<CountryType[]>([]);
   const [countries, setCountries] = useState<CountryType[]>([]);
   const [search, setSearch] = useState<string>("");
 
-  const filterCountryData = () => {
-    const searchLower = search.toLowerCase();
-    const data = countries?.filter((country) => {
-      const commonName = country?.name?.common?.toLowerCase();
-      const altSpellings = country?.altSpellings?.map((spelling) => spelling.toLowerCase()) || [];
-      return commonName?.includes(searchLower) || altSpellings.some((spelling) => spelling.includes(searchLower));
-    });
-    setFilterCountries(data);
-  };
+  const filterCountryData = useCallback(() => {
+    setFilterCountries(filterCountriesByQuery(countries, search));
+  }, [search, countries]);
 
-  const api = axios.create({
-    baseURL: "https://restcountries.com/v3.1",
-    timeout: 20000,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  const getCountries = async () => {
+  const getCountries = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get<CountryType[]>("/all");
@@ -40,21 +37,19 @@ function App() {
     } finally {
       setLoading(false);
     }
-  };
-
-
-  useEffect(() => {
-    getCountries();
   }, []);
 
   useEffect(() => {
+    getCountries();
+  }, [getCountries]);
+
+  useEffect(() => {
     filterCountryData();
-  }, [search, countries]);
+  }, [filterCountryData]);
 
   const onChangeFilter = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
   };
-
 
   return (
     <>
@@ -93,7 +88,6 @@ function App() {
             <img src={loadingGif} alt="" style={{ width: "50px" }} />
           </div>
         ) : (
-
           <>
             {filterCountries?.length > 0 ? (
               filterCountries.map((country) => (
@@ -120,7 +114,6 @@ function App() {
                 </button>
               </div>
             )}
-
           </>
         )}
       </div>
